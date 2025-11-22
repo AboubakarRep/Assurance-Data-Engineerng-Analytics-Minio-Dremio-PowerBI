@@ -1,0 +1,55 @@
+version: "3"
+
+services:
+  # Nessie Catalog Server Using In-Memory Store
+  catalog:
+    image: projectnessie/nessie:latest
+    container_name: catalog
+    networks:
+      - dremio-laptop-lakehouse
+    ports:
+      - 19120:19120
+
+  # Minio Storage Server - REUTILISE le conteneur existant
+  storage:
+    image: minio/minio:latest
+    container_name: minio_restore  # Même nom que ton conteneur existant
+    environment:
+      - MINIO_ROOT_USER=admin 
+      - MINIO_ROOT_PASSWORD=password
+      - MINIO_DOMAIN=storage
+      - MINIO_REGION_NAME=us-east-1
+      - MINIO_REGION=us-east-1
+    networks:
+      - dremio-laptop-lakehouse
+    ports:
+      - 9001:9001
+      - 9000:9000
+    command: ["server", "/data", "--console-address", ":9001"]
+    volumes:
+      - docker_minio_data:/data  # Volume EXISTANT
+
+  # Dremio - REUTILISE le conteneur existant
+  dremio:
+    platform: linux/x86_64
+    image: dremio/dremio-oss:latest
+    container_name: dremio_restore  # Même nom que ton conteneur existant
+    environment:
+      - DREMIO_JAVA_SERVER_EXTRA_OPTS=-Dpaths.dist=file:///opt/dremio/data/dist
+    networks:
+      - dremio-laptop-lakehouse
+    ports:
+      - 9047:9047
+      - 31010:31010
+      - 32010:32010
+    volumes:
+      - docker_dremio_data:/opt/dremio/data  # Volume EXISTANT
+
+networks:
+  dremio-laptop-lakehouse:
+
+volumes:
+  docker_dremio_data:
+    external: true  # IMPORTANT: utilise le volume existant
+  docker_minio_data:
+    external: true  # IMPORTANT: utilise le volume existant
